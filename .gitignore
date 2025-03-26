@@ -1,1 +1,49 @@
+# Ignore uv package manager's lock file
+uv.lock
+
+# Ignore node_modules directory (if applicable)
+node_modules/
+
+# Ignore environment files
+.env
+*.venv
+
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore log files
 *.log
+
+# Ignore compiled files
+*.class
+*.o
+*.so
+
+# Ignore temporary files
+*.swp
+*.tmp
+*.bak
+*.old
+
+# Ignore archives
+*.zip
+*.tar.gz
+*.rar
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
+*.iml
+
+# Ignore build directories
+dist/
+build/
+
+# Ignore SQLite database files
+*.sqlite3
+*.db

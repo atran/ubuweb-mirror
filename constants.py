@@ -1,9 +1,16 @@
-BASE_URL = "https://www.ubu.com/"
-FILM_URL = "https://www.ubu.com/film/index.html"
-BASE_FILM_URL = "https://www.ubu.com/film/"
-DOWNLOAD_PATH = "/home/lee/Videos/ubuweb/"
-ERROR_URL = "https://www.memoryoftheworld.org"
-BROKEN_PAGES=[215,15,9]
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+BASE_URL = os.getenv("BASE_URL")
+FILM_URL = os.getenv("FILM_URL")
+BASE_FILM_URL = os.getenv("BASE_FILM_URL")
+DOWNLOAD_PATH = os.getenv("DOWNLOAD_PATH")
+ERROR_URL = os.getenv("ERROR_URL")
+BROKEN_PAGES = list(map(int, os.getenv("BROKEN_PAGES").split(',')))
+
 '''
 215
 https://www.ubu.com/film/clarke_ornette.html
