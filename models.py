@@ -17,6 +17,7 @@ from constants import *
 # Javascript rendering
 from requests_html import HTMLSession
 import logging
+from os import makedirs
 
 @dataclass
 class Artist:
@@ -44,7 +45,7 @@ class Work:
         video = soup.find("div", class_="ubucontainer")
         if video is not None:
             moviename = video.find("a", id="moviename") 
-            if moviename is not None:
+            if (moviename is not None):
                 self.download_url = BASE_FILM_URL + moviename["href"]
             else:
                 logging.info("Reload URL and run with a dynamic scraper. Link might be javascript")
@@ -73,39 +74,86 @@ class Work:
             ydl.download([iframe["src"]])
 
     def download_work(self):
+        # Save the work HTML
+        page = requests.get(self.url)
+        artist_name = self.artist.name.replace(" ", "_")  # Replace spaces with underscores
+        work_name = self.name.replace(" ", "_")  # Replace spaces with underscores
+        Page().save_html(self.url, page.text, artist_name=artist_name, work_name=work_name)
+
+        # Download the video
         response = requests.get(self.download_url, stream=True)
         if response.url != ERROR_URL:
+            # Parse the URL to extract the video filename
             url_parts = urlparse(self.download_url)
-            path = url_parts.path.split("/")
-            filename = DOWNLOAD_PATH + path[-1:][0]
-            logging.debug(filename)
-            print(filename)
-            # copypasta https://stackoverflow.com/questions/37573483/progress-bar-while-download-file-over-http-with-requests
+            video_filename = os.path.basename(url_parts.path)
+
+            # Construct the directory and file path
+            directory = os.path.join(DOWNLOAD_PATH, artist_name, work_name)
+            filepath = os.path.join(directory, video_filename)
+
+            # Ensure the directory exists
+            makedirs(directory, exist_ok=True)
+
+            # Download the video with a progress bar
             size_in_bytes = int(response.headers.get('content-length', 0))
             block_size = 1024
             progress_bar = tqdm(total=size_in_bytes, unit='iB', unit_scale=True)
-            if exists(filename) is False:
-                with open(filename, "wb") as file:
+            if not exists(filepath):
+                with open(filepath, "wb") as file:
                     for data in response.iter_content(block_size):
                         progress_bar.update(len(data))
                         file.write(data)
                 progress_bar.close()
+                logging.info(f"Downloaded video to {filepath}")
             else:
-                logging.debug('file exists, TODO: write a function to check for partial downloads')
+                logging.debug('File already exists. Skipping download.')
         else:
-            logging.info("whoopsy daisy, no local download, need alternate download function")
+            logging.info("Download URL is invalid. Attempting alternate download method.")
             self.download_alternate_work()
 
 # TODO: refactor this class to have a Page base class and subclasses for different types of page
 class Page:
+    def save_html(self, url, content, artist_name=None, work_name=None):
+        """
+        Save the HTML content of a page to a local file, replicating the folder structure.
+        """
+        # Base directory for saving files
+        base_dir = DOWNLOAD_PATH
+
+        # If artist_name is provided, create a subdirectory for the artist
+        if artist_name:
+            base_dir = os.path.join(base_dir, artist_name)
+
+        # If work_name is provided, save as <artist>/<work>/index.html
+        if work_name:
+            base_dir = os.path.join(base_dir, work_name)
+            filename = "index.html"
+        else:
+            # Save as <artist>/index.html if no work_name is provided
+            filename = "index.html"
+
+        # Construct the full file path
+        filepath = os.path.join(base_dir, filename)
+
+        # Create directories if they don't exist
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        # Save the content to the file
+        with open(filepath, "w", encoding="utf-8") as file:
+            file.write(content)
+        logging.info(f"Saved HTML content to {filepath}")
+
     def get_tables(self, page):
         soup = BeautifulSoup(page.content, "html.parser")
         tables = soup.find_all("table")
         return tables
 
     # refactor this and get_links to reuse the response for many functions
-    def get_artist_description(self, url):
+    def get_artist_description(self, url, artist_name):
         page = requests.get(url)
+        # Save the artist HTML
+        self.save_html(url, page.text, artist_name=artist_name)
+
         tables = self.get_tables(page)
         storycontent = tables[1].find("div", class_="storycontent")
         description = storycontent.find_all("p")
@@ -114,6 +162,9 @@ class Page:
     def get_links(self, url):
         try:
             page = requests.get(url)
+            # Save the HTML content
+            self.save_html(url, page.text)
+
             tables = self.get_tables(page)
             # Stupid error handling for DMCA takedown pages
             links = tables[1].find_all("a", string=lambda text: "Marian Goodman" not in text)
